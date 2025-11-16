@@ -1,16 +1,19 @@
+version: '3.8'
+
 services:
-  nginx-proxy:
-    image: nginxproxy/nginx-proxy
-    container_name: nginx-proxy
-    ports:
-      - "80"
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-
-    # if you want to proxy based on host ports, you'll want to use the host network
-    # network_mode: "host"
-
-  whoami:
-    image: jwilder/whoami
-    environment:
-      - VIRTUAL_HOST=whoami.example
+  proxy:
+    image: nginx:alpine
+    restart: unless-stopped
+    expose:
+      - "8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: >
+      sh -c "echo 'events {} http { server { listen 8080; location / { 
+      proxy_pass http://host.docker.internal:20080;
+      proxy_set_header Host \$$http_host;
+      proxy_set_header X-Real-IP \$$remote_addr;
+      proxy_set_header X-Forwarded-For \$$proxy_add_x_forwarded_for;
+      proxy_buffering off;
+      proxy_redirect off;
+      }}}' > /tmp/nginx.conf && nginx -c /tmp/nginx.conf -g 'daemon off;'"
